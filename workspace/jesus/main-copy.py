@@ -197,7 +197,7 @@ class Juego:
 
         # síntesis de pluck
         pluck_env = Tanh(-Log(LFO(freq=arp_freq, type=0).range(0,1)/arp_freq)/4)
-        pluck_dry = LFO(freq = [100, 200], mul=pluck_env*0.1)
+        pluck_dry = LFO(freq = [100, 200], mul=pluck_env*0.08)
         pluck_wet = Biquad(pluck_dry, freq=pluck_env*2000, q=-(10 + pluck_env), type=0)
         pluck_out = pluck_wet.mix(1).mix(2).out()
 
@@ -213,9 +213,10 @@ class Juego:
 
             if int(arp_nota.get()) > len(scale) - 2:
                 tecera.setChoice([0, 0, 0, 0, 0, 0, 0, 2 - len(scale)])
+            else:
+                tecera.setChoice([0, 0, 0, 0, 0, 0, 0, 2])
 
             pluck_dry.setFreq([scale[int(arp_nota.get())], scale[int(arp_nota.get() + tecera.get())]])
-            
 
             # //////////////
             

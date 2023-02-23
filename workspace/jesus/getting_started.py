@@ -25,7 +25,6 @@ scale = [261.63, 293.66, 329.63, 392.00, 440.00, 493.88, 523.25]
 pluck_env = Adsr(attack=0, decay=0.2, sustain=0, release=0, dur=0.25, mul=1)
 pluck_dry = LFO(freq = 440, type=0, mul=pluck_env)
 pluck_wet = Biquad(pluck_dry, freq=100 + pluck_env*2000, q=-(10 + pluck_env), type=0)
-
 pluck_out = pluck_wet.mix(2).out()
 
 check_clock = 0
