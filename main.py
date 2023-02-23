@@ -16,9 +16,11 @@ JUGADOR_DESPLAZAMIENTO = 1
 
 INTERVALO_NUEVO_BLOQUE = random.randint(500,1500)
 
-JUGADOR_IMG_URL = "img/jugador.png"
+#JUGADOR_IMG_URL = "img/jugador.png"
+JUGADOR_IMG_URL = "img/caja.png"
 BLOQUES_IMGS = ["img/moneda-01.png", "img/moneda-02.png", "img/moneda-03.png"]
-FONDO_IMG_URL = "img/fondo-01.jpg"
+#FONDO_IMG_URL = "img/fondo-01.jpg"
+FONDO_IMG_URL = "img/fondo.jpg"
 
 LOGOTIPO_URL = "img/logotipo.png"
 
