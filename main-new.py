@@ -1,168 +1,251 @@
 import pygame, random
 
+# Colores
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
+# Ancho y alto de la pantalla
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
+
+# Valores por defectos en el juego
+GAME_DURATION = 30 # Duracion del juego, en segundos
+TOP_SCORE = 10 # Score maximo con el que el jugador gana
+GRAVITY = 2 # Gravedad. Que permitira saltos
+
+# Archivos de imagenes
+BACKGROUND_IMG = "img/fondo-01.jpg" # Imagen de fondo
+PLAYER_IMG = "img/jugador.png" # Jugador normal
+PLAYER_IMG_SAD = "img/jugador-sad.png" # Jugador feliz
+PLAYER_IMG_HAPPY = "img/jugador-happy.png" # Jugador triste
+THINGS_IMG_LIST = ["img/moneda-01.png", "img/moneda-02.png", "img/moneda-03.png"] # Lista de things (se elegiran aleatoriamente)
+
+# Archivos de musica (deben estar en formato WAV)
+GAME_MUSIC = "music/music.wav" # Musica de fondo del juego
+GAME_MUSIC_WINNER = "music/winner.wav" # Musica para cuando el jugador gane
+GAME_MUSIC_GAMEOVER = "music/gameover.wav" # Musica para cuando el jugador pierda
+
+# Archivos de sonido (deben estar en formato OGG)
+MOTION_SOUND = "sound/motion.ogg" # Sonido de movimiento
+PUNCH_SOUND = "sound/coin.ogg" # Sonido de golpe
+ERROR_SOUND = "sound/error.ogg" # Sonido de error
+
 class Player(pygame.sprite.Sprite):
-    def __init__(self, screen_width, screen_height):
+    def __init__(self):
         super().__init__() # Esto llama al constructor de la clase padre (Sprite)
-        self.screen_width = screen_width
-        self.screen_height = screen_height
-        self.image = pygame.image.load("img/caja.png").convert_alpha()
+        self.image = pygame.image.load(PLAYER_IMG).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.x = self.screen_width/2 - self.rect.width/2
-        self.rect.y = self.screen_height - self.rect.height
+        self.rect.x = SCREEN_WIDTH/2 - self.rect.width/2
+        self.rect.y = SCREEN_HEIGHT - self.rect.height
         self.speed_x = 0
         self.speed_y = 0
     
     def update(self):
-        # Ver que no se salga de los limites de la pantalla (rebote)
-        if self.rect.x + self.speed_x < 0 or self.screen_width - self.rect.width < self.rect.x + self.speed_x:
+        # Cambio de velicidad en el eje Y producto de la gravedad (para que caiga cuando salta)
+        if self.rect.x <  SCREEN_WIDTH - self.rect.width:
+            self.speed_y = self.speed_y + GRAVITY
+        
+        # Ver que no se salga de los limites de la pantalla en el eje X
+        if self.rect.x + self.speed_x < 0 or SCREEN_WIDTH - self.rect.width < self.rect.x + self.speed_x:
             self.speed_x = -self.speed_x
-        # Realizacion del movimiento
-        self.rect.x = self.rect.x + self.speed_x
-
-class Coin(pygame.sprite.Sprite):
-    def __init__(self, screen_width, screen_height):
-        super().__init__() # Esto llama al constructor de la clase padre (Sprite)
-        self.screen_width = screen_width
-        self.screen_height = screen_height
-        self.image = pygame.image.load("img/moneda-01.png").convert_alpha()
-        self.rect = self.image.get_rect()
-        self.rect.x = random.randint(0, self.screen_width - self.rect.width)
-        self.rect.y = 0
-        self.speed_x = 2*random.randint(-1, 1)
-        self.speed_y = 2
-    
-    def update(self):
-        # Ver que no se salga de los limites de la pantalla (rebote)
-        if self.rect.x + self.speed_x < 0 or self.screen_width - self.rect.width < self.rect.x + self.speed_x:
-            self.speed_x = -self.speed_x
+        
+        # Ver que no se salga de los limites de la pantalla en el eje Y
+        if SCREEN_HEIGHT - self.rect.height < self.rect.y + self.speed_y:
+            self.speed_y = 0
+        
         # Realizacion del movimiento
         self.rect.x = self.rect.x + self.speed_x
         self.rect.y = self.rect.y + self.speed_y
+    
+    def be_sad(self):
+        self.image = pygame.image.load(PLAYER_IMG_SAD).convert_alpha()
+
+    def be_happy(self):
+        self.image = pygame.image.load(PLAYER_IMG_HAPPY).convert_alpha()
+
+class Thing(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__() # Esto llama al constructor de la clase padre (Sprite)
+        self.image = pygame.image.load(random.choice(THINGS_IMG_LIST)).convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.x = random.randint(0, SCREEN_WIDTH - self.rect.width)
+        self.rect.y = 0
+        self.speed_x = 3*random.randint(-1, 1)
+        self.speed_y = random.randint(3, 6)
+    
+    def update(self):
+        # Ver que no se salga de los limites de la pantalla en el eje X
+        if self.rect.x + self.speed_x < 0 or SCREEN_WIDTH - self.rect.width < self.rect.x + self.speed_x:
+            self.speed_x = -self.speed_x
+        
+        # Ver que no se salga de los limites de la pantalla en el eje Y
+        if SCREEN_HEIGHT - self.rect.width < self.rect.y + self.speed_y:
+            self.rect.y = SCREEN_HEIGHT - self.rect.width
+            self.speed_y = 0
+        # Realizacion del movimiento
+        self.rect.x = self.rect.x + self.speed_x
+        self.rect.y = self.rect.y + self.speed_y
+    
+    def hit_the_ground(self):
+        if self.rect.y == SCREEN_HEIGHT - self.rect.width:
+            return True
+        else:
+            return False
 
 class Game:
     def __init__(self):
-        pygame.init()
+        pygame.init() # Se inicializa pygame
+        pygame.display.set_caption("Juego de ejemplo") # Cambiar el nombre del juego
 
-        self.screen_width = 1280
-        self.screen_height = 720
-        self.screen = pygame.display.set_mode([self.screen_width, self.screen_height])
-
-        self.backgroung = pygame.image.load("img/fondo-01.jpg")
+        self.screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
+        self.backgroung = pygame.image.load(BACKGROUND_IMG)
         self.clock = pygame.time.Clock() # Reloj que permitira manipular los fps
-        
-        
-        self.coin_sound = pygame.mixer.Sound("sound/coin.ogg")
-        self.sound = pygame.mixer.Sound("sound/coin.ogg")
-        self.sound = pygame.mixer.Sound("sound/coin.ogg")
-        
 
-        self.coin_list = pygame.sprite.Group() # Lista que contiene los coins que caeran. Se usara para detectar colisiones
-        self.sprite_list = pygame.sprite.Group() # Lista que contiene todos los sprites (coins y el player). Se usara para dibujarlas
+        self.thing_list = pygame.sprite.Group() # Lista que contiene los things que caeran. Se usara para detectar colisiones
+        self.sprite_list = pygame.sprite.Group() # Lista que contiene todos los sprites (things y el player). Se usara para dibujarlas
 
-        self.player = Player(self.screen_width, self.screen_height) # Jugador
+        self.player = Player()
         self.sprite_list.add(self.player) # Se agrega el player a la lista de sprites del juego
 
-        self.time = 10
-        self.score = 0
+        self.time = GAME_DURATION+1 # Tiempo de duracion del juego
+        self.score = 0 # Puntaje del jugador
 
-        self.started = True # None
-        self.game_over = None
+        self.started = True # Indica si el juego ha iniciado o terminado
+        self.game_over = None # Indica si perdio. None significa que no tiene valor asignado
 
-    def pause_motion(self):
-        for element in self.sprite_list:
-            element.speed_x = 0
-            element.speed_y = 0
+        self.collision_sound = pygame.mixer.Sound(PUNCH_SOUND)
+        self.motion_sound = pygame.mixer.Sound(MOTION_SOUND)
+        self.error_sound = pygame.mixer.Sound(ERROR_SOUND)
 
-    def create_coins(self):
-        if random.randint(1,100) == 50: # Genero un alewtorio entre 1 y 100, y si sale 50, genero un nuevo coin
-            coin = Coin(self.screen_width, self.screen_height)
-            self.coin_list.add(coin) # Se agrega el coin a la lista de coins del juego
-            self.sprite_list.add(coin) # Se agrega el coin a la lista de sprites del juego
+        pygame.mixer.music.load(GAME_MUSIC)
+        pygame.mixer.music.play(-1)
     
+    def create_things(self):
+        if self.game_over == None: # Verifica si el jugador aun no ha perdido ni ganado
+            if random.randint(1, 50) == 50: # Genero un aleatorio entre 1 y 100; y si sale 50 creo un thing que caera
+                thing = Thing()
+                self.thing_list.add(thing) # Se agrega el thing a la lista de things
+                self.sprite_list.add(thing) # Se agrega el thing a la lista de sprites del juego (que contiene thing y al jugador)
+
     def process_events(self):
-        # Capturar los eventos
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT: # Terminar cuando cierre la pantalla
+        for event in pygame.event.get(): # Captura los eventos para analizarlos
+            if event.type == pygame.QUIT: # Verifica si el usuario cierra la pantalla
                 self.started = False
-            if event.type == pygame.KEYDOWN: # Verifica si se presiono una tecla
-                if event.key == pygame.K_LEFT:
-                    self.player.speed_x = - 10
-                if event.key == pygame.K_RIGHT:
-                    self.player.speed_x = 10
-                if event.key == pygame.K_RETURN: # Si el juego ha terminado permite presionar ENTER para continuar
-                    if self.game_over != None:
-                        self.__init__()
+            if event.type == pygame.KEYDOWN: # Verifica si presiona una tecla
+                # Se analiza primero, el caso en que el jugador no ha ganado ni perdido (game_over = None)
+                if self.game_over == None: 
+                    if event.key == pygame.K_LEFT:
+                        self.player.speed_x = -10
+                        self.motion_sound.play() # Se reproduce el sonido de movimiento
+                    if event.key == pygame.K_RIGHT:
+                        self.player.speed_x = 10
+                        self.motion_sound.play() # Se reproduce el sonido de movimiento
+                    if event.key == pygame.K_SPACE:
+                        self.player.speed_y = -20
+                        self.motion_sound.play() # Se reproduce el sonido de movimiento
+                else: # Aqui se analiza el caso contrario, es decir cuando gano o perdio. Solo debe esperar el ENTER del usuario
+                    if event.key == pygame.K_RETURN: # Verifica si presiona ENTER
+                        if self.game_over != None: # Verifica si el jugador ha perdido o ha ganado (diferente de None)
+                            self.__init__()
     
     def run_logic(self):
-        if self.started == True:
-            # Actualizar la posicion de todos los sprites
+        if self.started == True: # Se verifica que el juego este iniciado
+
+            # Actualizamos la posicion de todos los sprites
             self.sprite_list.update()
 
             # Detectar colisiones
-            coins_hit_list = pygame.sprite.spritecollide(self.player, self.coin_list, True)
+            thing_hit_list = pygame.sprite.spritecollide(self.player, self.thing_list, True)
 
-            for coin in coins_hit_list:
-                self.sprite_list.remove(coin)
-                self.score = self.score + 1
-                self.coin_sound.play()
+            for thing in thing_hit_list:
+                self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
+                self.thing_list.remove(thing) # Se elimina de la lista de things
+
+                self.collision_sound.play() # Reproduce el sonido de la colision
+                self.score = self.score + 1 # Aumenta el puntaje
             
-            # Actualizamos el tiempo
-            self.time = self.time-0.01
+            # Detectar si algun thing ha golpeado al suelo
+            for thing in self.thing_list:
+                if thing.hit_the_ground() == True:
+                    self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
+                    self.thing_list.remove(thing) # Se elimina de la lista de things
+                    
+                    self.error_sound.play() # Se reproduce el sonido de error, por dejar caer el thing
+                    self.score = self.score - 1 # Disminuye el puntaje
 
-            # Detectar si gana o pierde
-            if int(self.time) > 0: # Si el tiempo es mayor a cero
-                if self.score >= 2: # Verificar si el score es 30 o mas, en ese caso gana
-                    self.game_over = False
-            else: # Si el tiempo llega a cero, habra perdido
-                self.game_over = True
+                    # Se asegura que el puntaje no baje de cero (no hay puntaje negativo)
+                    if self.score < 0:
+                        self.score = 0
 
-    def display_frame(self):
-        if self.game_over == None:
-            self.screen.blit(self.backgroung, [0, 0])
-            self.sprite_list.draw(self.screen)
-            self.display_info()
+            # Si el jugador aun no ha ganado o perdido, verificamos que le pasa
+            if self.game_over == None:
+                self.time = self.time - 0.02 # Actualizamos el tiempo
 
-            
-        else:
-            # Limpiar pantalla
-            #self.screen.fill(WHITE)
-            self.pause_motion()
-
-            if self.game_over == False:
-                font = pygame.font.SysFont("Arial", 50) # Fuente con que se va a dibujar
-                text = font.render("Felicitaciones, ganaste :)", True, BLACK) # Texto que se va a dibujar
-                # Posicion del texto centrada en x e y
-                text_x = self.screen_width/2 - text.get_width()/2
-                text_y = self.screen_height/2 - text.get_height()/2
-                self.screen.blit(text, [text_x, text_y])
-                
-            if self.game_over == True:
-                font = pygame.font.SysFont("Arial", 50) # Fuente con que se va a dibujar
-                text = font.render("Perdiste, vuelve a intentarlo", True, BLACK) # Texto que se va a dibujar
-                # Posicion del texto centrada en x e y
-                text_x = self.screen_width/2 - text.get_width()/2
-                text_y = self.screen_height/2 - text.get_height()/2
-                self.screen.blit(text, [text_x, text_y])
-        
-        pygame.display.flip()  
-        
+                # Detecto si gana o pierde
+                if int(self.time) > 0: # Si el tiempo es mayor a cero (tiene tiempo)
+                    if self.score >= TOP_SCORE: # Verifica si el score es 3 o mas, en ese caso gana
+                        self.game_over = False # No ha perdido, es decir ha ganado
+                        # Se reproduce sonido de game over
+                        pygame.mixer.music.load(GAME_MUSIC_WINNER)
+                        pygame.mixer.music.play(-1)
+                        # Se cambia la imagen del jugador ALEGRE
+                        self.player.be_happy()
+                else:
+                    self.game_over = True # Ha perdido
+                    # Se reproduce sonido de game over
+                    pygame.mixer.music.load(GAME_MUSIC_GAMEOVER)
+                    pygame.mixer.music.play(-1)
+                    # Se cambia la imagen del jugador TRISTE
+                    self.player.be_sad()
     
     def display_info(self):
-        self.font = pygame.font.SysFont('Showcard Gothic', 30, bold=False)
-        score_text = self.font.render("Puntos: "+str(self.score), True, BLACK)
-        time_text = self.font.render("Tiempo: "+str(int(self.time)), True, BLACK)
+        font = pygame.font.SysFont('Showcard Gothic', 30, bold=False)
+        score_text = font.render("Puntos: "+str(self.score)+" / "+str(TOP_SCORE), True, BLACK)
+        time_text = font.render("Tiempo: "+str(int(self.time)), True, BLACK)
 
-        self.screen.blit(score_text, (10, 10))
-        self.screen.blit(time_text, (self.screen_width - time_text.get_width(), 10))
+        self.screen.blit(score_text, (20, 20))
+        self.screen.blit(time_text, (SCREEN_WIDTH - time_text.get_width() - 20, 20))
+
+    def pause_motion(self):
+        for sprite in self.sprite_list:
+            sprite.speed_x = 0
+            sprite.speed_y = 0
+        
+        for thing in self.thing_list:
+            sprite.speed_x = 0
+            sprite.speed_y = 0
+
+    def display_frame(self):
+        self.screen.blit(self.backgroung, [0, 0]) # Se dibuja el fondo
+        self.sprite_list.draw(self.screen) # Se dibujan todos los srpites
+        self.display_info() # Se dibujan los textos (puntos y tiempo)
+        
+        if self.game_over == False:
+            font = pygame.font.SysFont('Showcard Gothic', 30, bold=True)
+            text = font.render("Ganaste. Presiona ENTER para continuar", True, BLACK)
+            # Posicion del texto
+            text_x = SCREEN_WIDTH/2 - text.get_width()/2
+            text_y = SCREEN_HEIGHT/2 - text.get_height()/2
+            self.screen.blit(text, [text_x, text_y])
+
+            # Se pausa el movimiento para todos los elementos del juego
+            self.pause_motion()
+        elif self.game_over == True:
+            font = pygame.font.SysFont('Showcard Gothic', 30, bold=True)
+            text = font.render("Perdiste. Presiona ENTER para continuar", True, BLACK)
+            # Posicion del texto
+            text_x = SCREEN_WIDTH/2 - text.get_width()/2
+            text_y = SCREEN_HEIGHT/2 - text.get_height()/2
+            self.screen.blit(text, [text_x, text_y])
+
+            # Se pausa el movimiento para todos los elementos del juego
+            self.pause_motion()
+
+        pygame.display.flip() # Actualizar el display
     
     def run(self):
-        
-        
         while self.started == True:
-            self.create_coins()
+            self.create_things()
             self.process_events()
             self.run_logic()
             self.display_frame()
