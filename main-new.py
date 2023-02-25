@@ -13,6 +13,12 @@ GAME_DURATION = 30 # Duracion del juego, en segundos
 TOP_SCORE = 10 # Score maximo con el que el jugador gana
 GRAVITY = 2 # Gravedad. Que permitira saltos
 
+THING_SPEED_Y_MIN = 2
+THING_SPEED_Y_MAX = 4
+
+PLAYER_NUMBER_MIN = 2
+PLAYER_NUMBER_MAX = 2
+
 # Archivos de imagenes
 BACKGROUND_IMG = "img/fondo-01.jpg" # Imagen de fondo
 PLAYER_IMG = "img/jugador.png" # Jugador normal
@@ -63,6 +69,20 @@ class Player(pygame.sprite.Sprite):
     def be_happy(self):
         self.image = pygame.image.load(PLAYER_IMG_HAPPY).convert_alpha()
 
+    def assign_number(self):
+        self.number = random.randint(PLAYER_NUMBER_MIN, PLAYER_NUMBER_MAX)
+        font = pygame.font.SysFont("Arial", 60, bold=True)
+
+        number_text = font.render(str(self.number), 1, WHITE)
+        W = number_text.get_width()
+        H = number_text.get_height()
+        self.image.blit(number_text, [self.rect.width/2 - W/2, self.rect.height/2 - H/3])
+
+        symbol_text = font.render("°", 1, WHITE)
+        W = symbol_text.get_width()
+        H = symbol_text.get_height()
+        self.image.blit(symbol_text, [self.rect.width/2 - W/2, self.rect.height/2 - 2*H/3])
+
 class Thing(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__() # Esto llama al constructor de la clase padre (Sprite)
@@ -71,7 +91,7 @@ class Thing(pygame.sprite.Sprite):
         self.rect.x = random.randint(0, SCREEN_WIDTH - self.rect.width)
         self.rect.y = 0
         self.speed_x = 3*random.randint(-1, 1)
-        self.speed_y = random.randint(3, 6)
+        self.speed_y = random.randint(THING_SPEED_Y_MIN, THING_SPEED_Y_MIN)
     
     def update(self):
         # Ver que no se salga de los limites de la pantalla en el eje X
@@ -91,6 +111,15 @@ class Thing(pygame.sprite.Sprite):
             return True
         else:
             return False
+    
+    def assign_number(self):
+        self.number = random.randint(1,144)
+        font = pygame.font.SysFont("Arial", 40, bold=True)
+
+        number_text = font.render(str(self.number), 1, WHITE)
+        W = number_text.get_width()
+        H = number_text.get_height()
+        self.image.blit(number_text, [self.rect.width/2 - W/2, self.rect.height/2 - H/2])
 
 class Game:
     def __init__(self):
@@ -101,10 +130,12 @@ class Game:
         self.backgroung = pygame.image.load(BACKGROUND_IMG)
         self.clock = pygame.time.Clock() # Reloj que permitira manipular los fps
 
-        self.thing_list = pygame.sprite.Group() # Lista que contiene los things que caeran. Se usara para detectar colisiones
+        self.correct_thing_list = pygame.sprite.Group() # Lista que contiene los things correctos. Se usara para detectar colisiones
+        self.incorrect_thing_list = pygame.sprite.Group() # Lista que contiene los things incorrectos. Se usara para detectar colisiones
         self.sprite_list = pygame.sprite.Group() # Lista que contiene todos los sprites (things y el player). Se usara para dibujarlas
 
         self.player = Player()
+        self.player.assign_number() # Se le asigna el numero
         self.sprite_list.add(self.player) # Se agrega el player a la lista de sprites del juego
 
         self.time = GAME_DURATION+1 # Tiempo de duracion del juego
@@ -124,8 +155,14 @@ class Game:
         if self.game_over == None: # Verifica si el jugador aun no ha perdido ni ganado
             if random.randint(1, 50) == 50: # Genero un aleatorio entre 1 y 100; y si sale 50 creo un thing que caera
                 thing = Thing()
-                self.thing_list.add(thing) # Se agrega el thing a la lista de things
+                thing.assign_number()
                 self.sprite_list.add(thing) # Se agrega el thing a la lista de sprites del juego (que contiene thing y al jugador)
+                
+                # Se verifica a cual lista de thing se agregara (correct o incorrect)
+                if self.is_correct(thing) == True:
+                    self.correct_thing_list.add(thing)
+                else:
+                    self.incorrect_thing_list.add(thing)
 
     def process_events(self):
         for event in pygame.event.get(): # Captura los eventos para analizarlos
@@ -148,34 +185,61 @@ class Game:
                         if self.game_over != None: # Verifica si el jugador ha perdido o ha ganado (diferente de None)
                             self.__init__()
     
+    def is_correct(self, thing):
+        if thing.number%self.player.number == 0:
+            return True
+        else:
+            return False
+
+    def detect_collisions(self):
+        # Detectar colisiones correctas
+            thing_hit_list = pygame.sprite.spritecollide(self.player, self.correct_thing_list, True)
+
+            for thing in thing_hit_list:
+                self.correct_thing_list.remove(thing) # Se elimina de la lista de things
+                self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
+
+                self.score = self.score + 1 # Aumenta el puntaje
+                self.collision_sound.play() # Reproduce el sonido de la colision
+
+            # Detectar colisiones incorrectas
+            thing_hit_list = pygame.sprite.spritecollide(self.player, self.incorrect_thing_list, True)
+
+            for thing in thing_hit_list:
+                self.incorrect_thing_list.remove(thing) # Se elimina de la lista de things
+                self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
+
+                self.score = self.score - 1 # Aumenta el puntaje
+                self.error_sound.play() # Reproduce el sonido de la colision
+
+    def detect_fallen(self):
+        # Eliminar los things correctos que cayeron al suelo
+        for thing in self.correct_thing_list:
+            if thing.hit_the_ground() == True:
+                self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
+                self.correct_thing_list.remove(thing) # Se elimina de la lista de things
+                
+                self.error_sound.play() # Se reproduce el sonido de error, por dejar caer el thing
+                self.score = self.score - 1 # Disminuye el puntaje
+
+        # Eliminar los things incorrectos que cayeron al suelo
+        for thing in self.incorrect_thing_list:
+            if thing.hit_the_ground() == True:
+                self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
+                self.incorrect_thing_list.remove(thing) # Se elimina de la lista de things
+
     def run_logic(self):
         if self.started == True: # Se verifica que el juego este iniciado
 
             # Actualizamos la posicion de todos los sprites
             self.sprite_list.update()
 
-            # Detectar colisiones
-            thing_hit_list = pygame.sprite.spritecollide(self.player, self.thing_list, True)
+            self.detect_collisions() # Se detectan colisiones
+            self.detect_fallen() # Se detectan things que cayeron al suelo
 
-            for thing in thing_hit_list:
-                self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
-                self.thing_list.remove(thing) # Se elimina de la lista de things
-
-                self.collision_sound.play() # Reproduce el sonido de la colision
-                self.score = self.score + 1 # Aumenta el puntaje
-            
-            # Detectar si algun thing ha golpeado al suelo
-            for thing in self.thing_list:
-                if thing.hit_the_ground() == True:
-                    self.sprite_list.remove(thing) # Se elimina de la lista de sprites (things y player)
-                    self.thing_list.remove(thing) # Se elimina de la lista de things
-                    
-                    self.error_sound.play() # Se reproduce el sonido de error, por dejar caer el thing
-                    self.score = self.score - 1 # Disminuye el puntaje
-
-                    # Se asegura que el puntaje no baje de cero (no hay puntaje negativo)
-                    if self.score < 0:
-                        self.score = 0
+            # Se asegura que el puntaje no baje de cero (no hay puntaje negativo)
+            if self.score < 0:
+                self.score = 0
 
             # Si el jugador aun no ha ganado o perdido, verificamos que le pasa
             if self.game_over == None:
@@ -211,10 +275,14 @@ class Game:
             sprite.speed_x = 0
             sprite.speed_y = 0
         
-        for thing in self.thing_list:
+        for thing in self.correct_thing_list:
             sprite.speed_x = 0
             sprite.speed_y = 0
 
+        for thing in self.incorrect_thing_list:
+            sprite.speed_x = 0
+            sprite.speed_y = 0
+    
     def display_frame(self):
         self.screen.blit(self.backgroung, [0, 0]) # Se dibuja el fondo
         self.sprite_list.draw(self.screen) # Se dibujan todos los srpites
@@ -242,7 +310,7 @@ class Game:
             self.pause_motion()
 
         pygame.display.flip() # Actualizar el display
-    
+
     def run(self):
         while self.started == True:
             self.create_things()
@@ -253,5 +321,7 @@ class Game:
             self.clock.tick(60) # 60 fps
         pygame.quit()
 
-g = Game()
-g.run()
+
+if __name__== "__main__" :
+    g = Game()
+    g.run()
