@@ -9,8 +9,10 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
 # Ancho y alto de la pantalla
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
+#SCREEN_WIDTH = 1280
+#SCREEN_HEIGHT = 720
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
 
 # Valores por defectos en el juego
 GAME_DURATION = 30 # Duracion del juego, en segundos
