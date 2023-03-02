@@ -184,7 +184,7 @@ class Juego:
 
         # rellenar un array llamado "indices" con los indices de "scale"
         indices = []
-        for i in range(0, len(scale)):
+        for i in range(0, len(scale) - 3):
             indices.append(i)
 
         # seleccion aleatoria de la frecuencia de eleccion de nota

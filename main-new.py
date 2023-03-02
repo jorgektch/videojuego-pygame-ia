@@ -145,6 +145,7 @@ class Thing(pygame.sprite.Sprite):
         H = number_text.get_height()
         # Se renderiza el numero dentro de la imagen del player
         self.image.blit(number_text, [self.rect.width/2 - W/2, self.rect.height/2 - H/2])
+
 class Game:
     def __init__(self):
         pygame.init() # Se inicializa pygame
@@ -370,7 +371,7 @@ class Game:
     
 
     def process_camera(self, hands):
-        image = self.webcam.read()
+        image = self.webcam.read() 
         if image is not None:
             height, width, _ = image.shape
             image = cv2.flip(image, 1)

@@ -22,7 +22,7 @@ def fingers_in_box(finger_list, x, y, w, h):
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
 alpha_up = 0.5
 alpha_left = 0.5
