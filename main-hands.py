@@ -146,7 +146,7 @@ class Thing(pygame.sprite.Sprite):
         H = number_text.get_height()
         # Se renderiza el numero dentro de la imagen del player
         self.image.blit(number_text, [self.rect.width/2 - W/2, self.rect.height/2 - H/2])
-        
+
 class Game:
     def __init__(self):
         pygame.init() # Se inicializa pygame
@@ -310,7 +310,7 @@ class Game:
         # Se obtiene la fecha y hora del sistema
         now = datetime.now()
         # Se abre el archivo results para escritura
-        f = open("results-face.txt", "a")
+        f = open("results-hands.txt", "a")
         # Se escribe el resultado en el archivo
         if self.game_over == False:
             f.write("Won,"+now.strftime("%Y/%m/%d %H:%M:%S")+"\n")
