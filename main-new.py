@@ -1,8 +1,8 @@
 import pygame, random
+import cv2
 import numpy as np
 import mediapipe as mp
 import math
-import cv2
 
 from webcam import Webcam
 
@@ -145,7 +145,6 @@ class Thing(pygame.sprite.Sprite):
         H = number_text.get_height()
         # Se renderiza el numero dentro de la imagen del player
         self.image.blit(number_text, [self.rect.width/2 - W/2, self.rect.height/2 - H/2])
-
 class Game:
     def __init__(self):
         pygame.init() # Se inicializa pygame
@@ -176,10 +175,14 @@ class Game:
         pygame.mixer.music.load(GAME_MUSIC)
         pygame.mixer.music.play(-1)
 
-        # Facemesh de mediapipe
-        self.mp_face_mesh = mp.solutions.face_mesh
+        # Hands de mediapipe
+        self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
+
+        self.alpha_up = 0.5
+        self.alpha_left = 0.5
+        self.alpha_right = 0.5
 
         # Uso de webcam
         self.webcam = Webcam().start() # Inicializacion de la camara
@@ -350,111 +353,102 @@ class Game:
 
         pygame.display.flip() # Se actualiza el display
 
-    def process_camera(self, face_mesh):
+    
+    def point_in_box(self, p, box):
+        x, y, w, h = box[0], box[1], box[2], box[3]
+        if (x<p[0] and p[0]<x+w) and (y<p[1] and p[1]<y+h):
+            return True
+        else:
+            return False
+
+    def fingers_in_box(self, finger_list, box):
+        cont = 0
+        for i in range(len(finger_list)):
+            if self.point_in_box(finger_list[i], box) == False:
+                return False
+        return True
+    
+
+    def process_camera(self, hands):
         image = self.webcam.read()
         if image is not None:
-            image.flags.writeable = False
-            image = cv2.flip(image, 1)
             height, width, _ = image.shape
+            image = cv2.flip(image, 1)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            image.flags.writeable = True
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            results = face_mesh.process(image)
+
             self.webcam_image = image
+            results = hands.process(image) # Procesador de hands
+            
+            margin = 10
 
-            if results.multi_face_landmarks is not None:
-                for face_landmarks in results.multi_face_landmarks:
-                    """
-                    #Coordenadas de la cara (arriba y abajo)
-                    top = (face_landmarks.landmark[10].x, face_landmarks.landmark[10].y)
-                    bottom = (face_landmarks.landmark[152].x, face_landmarks.landmark[152].y)
+            x_up, y_up, w_up, h_up = int(width/3)+margin, margin, int(width/3)-2*margin, int(height/2)-2*margin
+            sub_image = image[y_up:y_up+h_up, x_up:x_up+w_up]
+            white_rect = np.ones(sub_image.shape, dtype=np.uint8) * 255
+            image[y_up:y_up+h_up, x_up:x_up+w_up] = cv2.addWeighted(sub_image, self.alpha_up, white_rect, 1-self.alpha_up, 1.0)
 
-                    #Obtener coordenadas del 'cuadrado' de la cara para poder mostrarlo en la pantalla despues
-                    self.face_left_x = face_landmarks.landmark[234].x
-                    self.face_right_x = face_landmarks.landmark[454].x
-                    self.face_top_y = face_landmarks.landmark[10].y
-                    self.face_bottom_y = face_landmarks.landmark[152].y
+            x_left, y_left, w_left, h_left = margin, int(height/2)+margin, int(width/3)-2*margin, int(height/2)-2*margin
+            sub_image = image[y_left:y_left+h_left, x_left:x_left+w_left]
+            white_rect = np.ones(sub_image.shape, dtype=np.uint8) * 255
+            image[y_left:y_left+h_left, x_left:x_left+w_left] = cv2.addWeighted(sub_image, self.alpha_left, white_rect, 1-self.alpha_left, 1.0)
 
-                    #Dejar algo de espacio alrededor
-                    self.face_left_x = self.face_left_x - .1
-                    self.face_right_x = self.face_right_x + .1
-                    self.face_top_y = self.face_top_y - .1
-                    self.face_bottom_y = self.face_bottom_y + .1
+            x_right, y_right, w_right, h_right = int(2*width/3)+margin, int(height/2)+margin, int(width/3)-2*margin, int(height/2)-2*margin
+            sub_image = image[y_right:y_right+h_right, x_right:x_right+w_right]
+            white_rect = np.ones(sub_image.shape, dtype=np.uint8) * 255
+            image[y_right:y_right+h_right, x_right:x_right+w_right] = cv2.addWeighted(sub_image, self.alpha_right, white_rect, 1-self.alpha_right, 1.0)
 
-                    cv2.line(
-                        self.webcam_image, 
-                        (int(top[0] * self.webcam.width()), int(top[1] * self.webcam.height())),
-                        (int(bottom[0] * self.webcam.width()), int(bottom[1] * self.webcam.height())),
-                        (0, 255, 0), 3
-                    )
+            box_up = [x_up, y_up, w_up, h_up]
+            box_left = [x_left, y_left, w_left, h_left]
+            box_right = [x_right, y_right, w_right, h_right]
 
-                    cv2.circle(self.webcam_image, (int(top[0] * self.webcam.width()), int(top[1] * self.webcam.height())), 8, (0,0,255), -1)
-                    cv2.circle(self.webcam_image, (int(bottom[0] * self.webcam.width()), int(bottom[1] * self.webcam.height())), 8, (0,0,255), -1)
-                    """
-                    x_sup = int(face_landmarks.landmark[10].x * width)
-                    y_sup = int(face_landmarks.landmark[10].y * height)
+            if results.multi_hand_landmarks is not None:
+
+                
+                for hand_landmarks in results.multi_hand_landmarks:
+                    self.mp_drawing.draw_landmarks(
+                        image, hand_landmarks, self.mp_hands.HAND_CONNECTIONS,
+                        self.mp_drawing.DrawingSpec(color=(255,255,0), thickness=4, circle_radius=5),
+                        self.mp_drawing.DrawingSpec(color=(255,0,255), thickness=4))
                     
-                    x_inf = int(face_landmarks.landmark[152].x * width)
-                    y_inf = int(face_landmarks.landmark[152].y * height)
+                    # Posicion del dedo pulgar
+                    x1 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP].x * width)
+                    y1 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP].y * height)
+                    # Posicion del dedo indice
+                    x2 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP].x * width)
+                    y2 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP].y * height)
+                    # Posicion del dedo medio
+                    x3 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP].x * width)
+                    y3 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP].y * height)
+                    # Posicion del dedo anular
+                    x4 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.RING_FINGER_TIP].x * width)
+                    y4 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.RING_FINGER_TIP].y * height)
+                    # Posicion del dedo menhique
+                    x5 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.PINKY_TIP].x * width)
+                    y5 = int(hand_landmarks.landmark[self.mp_hands.HandLandmark.PINKY_TIP].y * height)
 
-                    x_mean_vertical = int((x_sup + x_inf)/2)
-                    y_mean_vertical = int((y_sup + y_inf)/2)
+                    fingers = [[x1,y1], [x2,y2], [x3,y3], [x4,y4], [x5,y5]]                    
 
-                    x_left = int(face_landmarks.landmark[234].x * width)
-                    y_left = int(face_landmarks.landmark[234].y * height)
-
-                    x_right = int(face_landmarks.landmark[454].x * width)
-                    y_right = int(face_landmarks.landmark[454].y * height)
-
-                    y_mean_horizontal = (y_right + y_left)/2
-
-                    cv2.line(image, (x_sup, y_sup), (x_inf, y_inf), (255,0,0), 5)
-
-                    cv2.circle(image, (x_sup, y_sup), 10, (255,0,255), -1)
-                    cv2.circle(image, (x_inf, y_inf), 10, (255,0,255), -1)
-                    cv2.circle(image, (x_mean_vertical, y_mean_vertical), 10, (255,0,255), -1)
-                    cv2.circle(image, (x_left, y_left), 10, (255,0,255), -1)
-                    cv2.circle(image, (x_right, y_right), 10, (255,0,255), -1)
-
-                    cv2.line(image, (x_left, y_left), (x_right, y_right), (255,0,0), 5)
-
-                    #Deteccion de angulo
-                    radians = -math.atan2(y_sup-y_inf,x_sup-x_inf)
-                    degrees = math.degrees(radians)
-                    degrees = round(degrees)
-
-                    self.detect_head_movement(degrees, y_mean_vertical, y_mean_horizontal)
-
+                    self.detect_hands_movement(fingers, box_up, box_left, box_right)
+                
             k = cv2.waitKey(1) & 0xFF
-
-    def detect_head_movement(self, degrees, y_mean_vertical, y_mean_horizontal):
-        """
-        radians = math.atan2(bottom[1] - top[1], bottom[0] - top[0])
-        degrees = math.degrees(radians)
-
-        #Angulo de deteccion de 70 a 110 (-1 a 1)
-        min_degrees = 70
-        max_degrees = 110
-        degree_range = max_degrees - min_degrees
         
-        if degrees < min_degrees: degrees = min_degrees
-        if degrees > max_degrees: degrees = max_degrees
-
-        self.movement = ( ((degrees-min_degrees) / degree_range) * 2) - 1
-        """
-
-        if degrees < 85:
-            self.player.speed_x = 10
-        elif degrees > 95:
-            self.player.speed_x = -10
-        else:
-            self.player.speed_x = 0
-        
-
-        if y_mean_vertical < y_mean_horizontal:
+    def detect_hands_movement(self, fingers, box_up, box_left, box_right):
+        if self.fingers_in_box(fingers, box_up) == True:
             self.player.speed_y = -10
-        #else:
-        #    dy = 0
+            self.alpha_up = 0.2
+        else:
+            self.alpha_up = 0.5
+
+        if self.fingers_in_box(fingers, box_left) == True:
+            self.player.speed_x = -10
+            self.alpha_left = 0.2
+        else:
+            self.alpha_left = 0.5
+        
+        if self.fingers_in_box(fingers, box_right) == True:
+            self.player.speed_x = 10
+            self.alpha_right = 0.2
+        else:
+            self.alpha_right = 0.5
 
     def render_camera(self):
         # Limpiar coordenadas del cuadro de la cara
@@ -464,31 +458,7 @@ class Game:
         if self.face_bottom_y > 1: self.face_bottom_y = 1
 
         face_surf = pygame.image.frombuffer(self.webcam_image, (int(self.webcam.width()), int(self.webcam.height())), "BGR")
-        """
-        face_rect = pygame.Rect(
-            int(self.face_left_x*self.webcam.width()),
-            int(self.face_top_y*self.webcam.height()),
-            int(self.face_right_x*self.webcam.width()) - int(self.face_left_x*self.webcam.width()),
-            int(self.face_bottom_y*self.webcam.height()) - int(self.face_top_y*self.webcam.height())
-        )
         
-        only_face_surf = pygame.Surface((
-            int(self.face_right_x*self.webcam.width()) - int(self.face_left_x*self.webcam.width()),
-            int(self.face_bottom_y*self.webcam.height()) - int(self.face_top_y*self.webcam.height())
-        ))
-        only_face_surf.blit(face_surf, (0,0), face_rect)
-
-        height = only_face_surf.get_rect().height
-        width = only_face_surf.get_rect().width
-        if width == 0:
-            width = 1
-        face_ratio = height / width
-        face_area_width = 200
-        face_area_height = face_area_width * face_ratio
-        if (face_area_height > self.max_face_surf_height):
-            self.max_face_surf_height = face_area_height
-        only_face_surf = pygame.transform.scale(only_face_surf, (int(face_area_width),int(self.max_face_surf_height)))
-        """
         height = face_surf.get_rect().height
         width = face_surf.get_rect().width
         face_ratio = height / width
@@ -501,35 +471,25 @@ class Game:
         self.screen.blit(face_surf, [SCREEN_WIDTH/2-face_area_height/2, 0])
 
     def run(self):
-        """
-        while self.started == True:
-            self.create_things()
-            self.process_events()
-            self.run_logic()
-            self.display_frame()
-            self.display_info()
-            self.clock.tick(60) # 60 fps
-        pygame.quit()
-        """
-        with self.mp_face_mesh.FaceMesh(
-            static_image_mode=False,
-            max_num_faces=1,
+        with self.mp_hands.Hands(
+            static_image_mode = False,
+            max_num_hands = 1,
             min_detection_confidence=0.5,
-            refine_landmarks=True
-        ) as face_mesh:
+            min_tracking_confidence=0.5
+        ) as hands:
             while self.started == True:
 
                 if self.game_over == None:
                     if not self.webcam.ready():
                         continue
-                    self.process_camera(face_mesh)
+                    self.process_camera(hands)
 
                 self.create_things()
                 self.process_events()
                 self.run_logic()
                 self.display_frame()
                 self.display_info()
-                self.clock.tick(60) # 60 fps
+                #self.clock.tick(60) # 60 fps
             pygame.quit()
 
 if __name__== "__main__" :
