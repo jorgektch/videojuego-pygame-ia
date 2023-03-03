@@ -398,7 +398,7 @@ class Game:
     
     def point_in_box(self, p, box):
         x, y, w, h = box[0], box[1], box[2], box[3]
-        if (x<p[0] and p[0]<x+w) and (y<p[1] and p[1]<y+h):
+        if x<p[0] and p[0]<x+w and y<p[1] and p[1]<y+h:
             return True
         else:
             return False
