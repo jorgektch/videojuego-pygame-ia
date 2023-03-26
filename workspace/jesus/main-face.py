@@ -297,7 +297,7 @@ class Game:
         if self.game_over == None: # Verifica si el jugador aun no ha perdido ni ganado
             if random.randint(1, 50) == 50: # Genero un aleatorio entre 1 y 100; y si sale 50 creo un thing que caera
                 thing = Thing()
-                thing.assign_number(0.75, self.player.number)
+                thing.assign_number(0.7, self.player.number)
                 self.sprite_list.add(thing) # Se agrega el thing a la lista de sprites del juego (que contiene thing y al jugador)
                 
                 # Se verifica a cual lista de thing se agregara (correct o incorrect)
